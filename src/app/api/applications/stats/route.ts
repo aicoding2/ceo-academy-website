@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+type ApplicationWhere = {
+  generation?: number
+}
+
+type MonthlyStat = { month: Date; count: number }
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const generation = searchParams.get('generation')
 
-    const where: any = {}
+    const where: ApplicationWhere = {}
     if (generation && generation !== 'all') {
       where.generation = parseInt(generation)
     }
@@ -36,7 +42,7 @@ export async function GET(request: NextRequest) {
     const sixMonthsAgo = new Date()
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
 
-    const monthlyStats = await prisma.$queryRaw`
+    const monthlyStats = await prisma.$queryRaw<MonthlyStat[]>`
       SELECT 
         DATE_TRUNC('month', "submittedAt") as month,
         COUNT(*)::integer as count

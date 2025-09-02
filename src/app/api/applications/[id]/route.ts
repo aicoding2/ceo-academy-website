@@ -10,11 +10,12 @@ const updateApplicationSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const application = await prisma.application.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         reviewer: {
           select: {
@@ -46,14 +47,15 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     const validatedData = updateApplicationSchema.parse(body)
 
     const existingApplication = await prisma.application.findUnique({
-      where: { id: params.id }
+      where: { id }
     })
 
     if (!existingApplication) {
@@ -77,7 +79,7 @@ export async function PATCH(
     }
 
     const updatedApplication = await prisma.application.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       include: {
         reviewer: {
@@ -100,7 +102,7 @@ export async function PATCH(
       return NextResponse.json(
         { 
           error: '입력 데이터가 올바르지 않습니다',
-          details: error.errors.map(e => ({
+          details: error.issues.map(e => ({
             field: e.path.join('.'),
             message: e.message
           }))
@@ -119,11 +121,12 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const existingApplication = await prisma.application.findUnique({
-      where: { id: params.id }
+      where: { id }
     })
 
     if (!existingApplication) {
@@ -134,7 +137,7 @@ export async function DELETE(
     }
 
     await prisma.application.delete({
-      where: { id: params.id }
+      where: { id }
     })
 
     return NextResponse.json({

@@ -125,7 +125,7 @@ export default function ApplyPage() {
       } else {
         if (result.details) {
           const fieldErrors: Record<string, string> = {}
-          result.details.forEach((detail: any) => {
+          result.details.forEach((detail: { field: string; message: string }) => {
             fieldErrors[detail.field] = detail.message
           })
           setErrors(fieldErrors)

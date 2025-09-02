@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { ApplicationStatus, Prisma } from '@prisma/client'
 
 const applicationSchema = z.object({
   name: z.string().min(1, '성명을 입력해주세요'),
@@ -16,6 +17,11 @@ const applicationSchema = z.object({
   generation: z.number().min(1, '기수를 선택해주세요'),
 })
 
+type ApplicationWhere = {
+  status?: ApplicationStatus
+  generation?: number
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -25,10 +31,10 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10')
     const skip = (page - 1) * limit
 
-    const where: any = {}
+    const where: ApplicationWhere = {}
     
     if (status && status !== 'ALL') {
-      where.status = status
+      where.status = status as ApplicationStatus
     }
     
     if (generation && generation !== 'all') {
@@ -114,7 +120,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           error: '입력 데이터가 올바르지 않습니다',
-          details: error.errors.map(e => ({
+          details: error.issues.map(e => ({
             field: e.path.join('.'),
             message: e.message
           }))

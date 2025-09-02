@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 
 interface Application {
   id: string
@@ -45,7 +45,6 @@ const statusColors = {
 
 export default function ApplicationDetailPage() {
   const params = useParams()
-  const router = useRouter()
   const [application, setApplication] = useState<Application | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -55,28 +54,27 @@ export default function ApplicationDetailPage() {
   const [showStatusForm, setShowStatusForm] = useState(false)
 
   useEffect(() => {
+    const fetchApplication = async () => {
+      try {
+        const response = await fetch(`/api/applications/${params.id}`)
+        if (response.ok) {
+          const data = await response.json()
+          setApplication(data)
+          setNewStatus(data.status)
+          setAdminNotes(data.adminNotes || '')
+        } else {
+          const errorData = await response.json()
+          setError(errorData.error || '지원서를 불러오는데 실패했습니다')
+        }
+      } catch (error) {
+        console.error('지원서 조회 오류:', error)
+        setError('지원서를 불러오는데 실패했습니다')
+      } finally {
+        setLoading(false)
+      }
+    }
     fetchApplication()
   }, [params.id])
-
-  const fetchApplication = async () => {
-    try {
-      const response = await fetch(`/api/applications/${params.id}`)
-      if (response.ok) {
-        const data = await response.json()
-        setApplication(data)
-        setNewStatus(data.status)
-        setAdminNotes(data.adminNotes || '')
-      } else {
-        const errorData = await response.json()
-        setError(errorData.error || '지원서를 불러오는데 실패했습니다')
-      }
-    } catch (error) {
-      console.error('지원서 조회 오류:', error)
-      setError('지원서를 불러오는데 실패했습니다')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleStatusUpdate = async () => {
     if (!application) return
