@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  password     String
+  name         String
+  generation   Int?
+  role         Role      @default(USER)
+  profileImage String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  posts              Post[]        @relation("AuthoredPosts")
+  comments           Comment[]     @relation("AuthoredComments")
+  activities         Activity[]
+  reviewedApplications Application[] @relation("ReviewedApplications")
+  
+  @@map("users")
+}
+
+model Course {
+  id           String   @id @default(cuid())
+  title        String
+  description  String   @db.Text
+  duration     String
+  price        Int?
+  image        String?
+  isActive     Boolean  @default(true)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@map("courses")
+}
+
+model Activity {
+  id          String   @id @default(cuid())
+  generation  Int
+  title       String
+  description String   @db.Text
+  date        DateTime
+  images      Json
+  createdBy   String
+  createdAt   DateTime @default(now())
+  
+  creator     User     @relation(fields: [createdBy], references: [id])
+  
+  @@map("activities")
+}
+
+model Application {
+  id               String            @id @default(cuid())
+  name             String
+  phone            String
+  birthDate        String?
+  gender           String?
+  companyPosition  String            @db.Text
+  address          String?
+  interests        Json
+  golf             String?
+  referrer         String?
+  taxInvoice       String?
+  generation       Int
+  status           ApplicationStatus @default(PENDING)
+  adminNotes       String?           @db.Text
+  submittedAt      DateTime          @default(now())
+  reviewedAt       DateTime?
+  reviewedBy       String?
+  
+  reviewer         User?             @relation("ReviewedApplications", fields: [reviewedBy], references: [id])
+  
+  @@map("applications")
+}
+
+model Post {
+  id        String       @id @default(cuid())
+  title     String
+  content   String       @db.Text
+  authorId  String
+  category  PostCategory @default(FREE)
+  isPinned  Boolean      @default(false)
+  viewCount Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  
+  author    User         @relation("AuthoredPosts", fields: [authorId], references: [id])
+  comments  Comment[]
+  
+  @@map("posts")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  authorId  String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User     @relation("AuthoredComments", fields: [authorId], references: [id])
+  
+  @@map("comments")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum PostCategory {
+  NOTICE
+  QNA
+  FREE
+}
+
+enum ApplicationStatus {
+  PENDING
+  REVIEWING
+  APPROVED
+  REJECTED
+  WAITLIST
+}
