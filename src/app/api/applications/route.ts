@@ -15,9 +15,9 @@ const applicationSchema = z.object({
   companyPosition: z.string().min(1, '소속과 직위를 입력해주세요').max(200, '소속과 직위는 200자 이하로 입력해주세요'),
   address: z.string().max(300, '주소는 300자 이하로 입력해주세요').optional(),
   interests: z.array(z.string()).min(1, '관심 분야를 최소 1개 이상 선택해주세요').max(10, '관심 분야는 최대 10개까지 선택 가능합니다'),
-  golf: z.enum(['Yes', 'No'], { required_error: '골프 여부를 선택해주세요' }),
+  golf: z.enum(['Yes', 'No'], { message: '골프 여부를 선택해주세요' }),
   referrer: z.string().max(100, '추천인은 100자 이하로 입력해주세요').optional(),
-  taxInvoice: z.enum(['발행', '미발행'], { required_error: '세금계산서 발행 여부를 선택해주세요' }),
+  taxInvoice: z.enum(['발행', '미발행'], { message: '세금계산서 발행 여부를 선택해주세요' }),
   generation: z.number().int().min(1, '기수를 선택해주세요').max(100, '유효하지 않은 기수입니다'),
 })
 
@@ -67,9 +67,6 @@ const DUMMY_APPLICATIONS: Application[] = [
   }
 ]
 
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
 
 export async function GET(request: NextRequest) {
   try {
