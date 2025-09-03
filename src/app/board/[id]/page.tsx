@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 
@@ -53,30 +53,31 @@ export default function ApplicationDetailPage() {
   const [adminNotes, setAdminNotes] = useState('')
   const [showStatusForm, setShowStatusForm] = useState(false)
 
-  useEffect(() => {
-    const fetchApplication = async () => {
-      try {
-        const response = await fetch(`/api/applications/${params.id}`)
-        if (response.ok) {
-          const data = await response.json()
-          setApplication(data)
-          setNewStatus(data.status)
-          setAdminNotes(data.adminNotes || '')
-        } else {
-          const errorData = await response.json()
-          setError(errorData.error || '지원서를 불러오는데 실패했습니다')
-        }
-      } catch (error) {
-        console.error('지원서 조회 오류:', error)
-        setError('지원서를 불러오는데 실패했습니다')
-      } finally {
-        setLoading(false)
+  const fetchApplication = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/applications/${params.id}`)
+      if (response.ok) {
+        const data = await response.json()
+        setApplication(data)
+        setNewStatus(data.status)
+        setAdminNotes(data.adminNotes || '')
+      } else {
+        const errorData = await response.json()
+        setError(errorData.error || '지원서를 불러오는데 실패했습니다')
       }
+    } catch (error) {
+      console.error('지원서 조회 오류:', error)
+      setError('지원서를 불러오는데 실패했습니다')
+    } finally {
+      setLoading(false)
     }
-    fetchApplication()
   }, [params.id])
 
-  const handleStatusUpdate = async () => {
+  useEffect(() => {
+    fetchApplication()
+  }, [fetchApplication])
+
+  const handleStatusUpdate = useCallback(async () => {
     if (!application) return
     
     setIsUpdating(true)
@@ -109,7 +110,7 @@ export default function ApplicationDetailPage() {
     } finally {
       setIsUpdating(false)
     }
-  }
+  }, [application, newStatus, adminNotes])
 
   if (loading) {
     return (

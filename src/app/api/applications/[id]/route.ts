@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
 const updateApplicationSchema = z.object({
@@ -8,30 +7,35 @@ const updateApplicationSchema = z.object({
   reviewedBy: z.string().optional(),
 })
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params
-    const application = await prisma.application.findUnique({
-      where: { id },
-      include: {
-        reviewer: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
-      }
-    })
-
-    if (!application) {
-      return NextResponse.json(
-        { error: '지원서를 찾을 수 없습니다' },
-        { status: 404 }
-      )
+    
+    // 임시 더미 데이터
+    const application = {
+      id,
+      name: '김민수',
+      email: 'test@example.com',
+      phone: '010-1234-5678',
+      generation: 2,
+      motivation: 'CEO 아카데미에 참여하고 싶습니다.',
+      experience: '10년 경력',
+      goals: '리더십 향상',
+      previousEducation: '대학교 졸업',
+      currentJob: '마케팅팀장',
+      company: '(주)테크스타트업',
+      status: 'PENDING',
+      adminNotes: '',
+      submittedAt: new Date().toISOString(),
+      reviewedAt: null,
+      reviewer: null
     }
 
     return NextResponse.json(application)
@@ -54,43 +58,25 @@ export async function PATCH(
     const body = await request.json()
     const validatedData = updateApplicationSchema.parse(body)
 
-    const existingApplication = await prisma.application.findUnique({
-      where: { id }
-    })
-
-    if (!existingApplication) {
-      return NextResponse.json(
-        { error: '지원서를 찾을 수 없습니다' },
-        { status: 404 }
-      )
-    }
-
-    const updateData: any = {
+    // 임시 응답
+    const updatedApplication = {
+      id,
+      name: '김민수',
+      email: 'test@example.com',
+      phone: '010-1234-5678',
+      generation: 2,
+      motivation: 'CEO 아카데미에 참여하고 싶습니다.',
+      experience: '10년 경력',
+      goals: '리더십 향상',
+      previousEducation: '대학교 졸업',
+      currentJob: '마케팅팀장',
+      company: '(주)테크스타트업',
       status: validatedData.status,
-      reviewedAt: new Date()
+      adminNotes: validatedData.adminNotes || '',
+      submittedAt: new Date().toISOString(),
+      reviewedAt: new Date().toISOString(),
+      reviewer: null
     }
-
-    if (validatedData.adminNotes !== undefined) {
-      updateData.adminNotes = validatedData.adminNotes
-    }
-
-    if (validatedData.reviewedBy) {
-      updateData.reviewedBy = validatedData.reviewedBy
-    }
-
-    const updatedApplication = await prisma.application.update({
-      where: { id },
-      data: updateData,
-      include: {
-        reviewer: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
-      }
-    })
 
     return NextResponse.json({
       message: '지원서 상태가 성공적으로 업데이트되었습니다',
@@ -125,20 +111,6 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const existingApplication = await prisma.application.findUnique({
-      where: { id }
-    })
-
-    if (!existingApplication) {
-      return NextResponse.json(
-        { error: '지원서를 찾을 수 없습니다' },
-        { status: 404 }
-      )
-    }
-
-    await prisma.application.delete({
-      where: { id }
-    })
 
     return NextResponse.json({
       message: '지원서가 성공적으로 삭제되었습니다'

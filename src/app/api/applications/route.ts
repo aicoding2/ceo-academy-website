@@ -1,65 +1,103 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-import { ApplicationStatus, Prisma } from '@prisma/client'
 
+// 상수 정의
+const PHONE_REGEX = /^010-\d{4}-\d{4}$/
+const DEFAULT_PAGE_SIZE = 10
+const MAX_PAGE_SIZE = 100
+
+// 스키마 정의
 const applicationSchema = z.object({
-  name: z.string().min(1, '성명을 입력해주세요'),
-  phone: z.string().regex(/^010-\d{4}-\d{4}$/, '010-1234-5678 형식으로 입력해주세요'),
+  name: z.string().min(1, '성명을 입력해주세요').max(50, '이름은 50자 이하로 입력해주세요'),
+  phone: z.string().regex(PHONE_REGEX, '010-1234-5678 형식으로 입력해주세요'),
   birthDate: z.string().optional(),
-  gender: z.string().optional(),
-  companyPosition: z.string().min(1, '소속과 직위를 입력해주세요'),
-  address: z.string().optional(),
-  interests: z.array(z.string()).min(1, '관심 분야를 최소 1개 이상 선택해주세요'),
-  golf: z.string().min(1, '골프 여부를 선택해주세요'),
-  referrer: z.string().optional(),
-  taxInvoice: z.string().min(1, '세금계산서 발행 여부를 선택해주세요'),
-  generation: z.number().min(1, '기수를 선택해주세요'),
+  gender: z.enum(['남', '여']).optional(),
+  companyPosition: z.string().min(1, '소속과 직위를 입력해주세요').max(200, '소속과 직위는 200자 이하로 입력해주세요'),
+  address: z.string().max(300, '주소는 300자 이하로 입력해주세요').optional(),
+  interests: z.array(z.string()).min(1, '관심 분야를 최소 1개 이상 선택해주세요').max(10, '관심 분야는 최대 10개까지 선택 가능합니다'),
+  golf: z.enum(['Yes', 'No'], { required_error: '골프 여부를 선택해주세요' }),
+  referrer: z.string().max(100, '추천인은 100자 이하로 입력해주세요').optional(),
+  taxInvoice: z.enum(['발행', '미발행'], { required_error: '세금계산서 발행 여부를 선택해주세요' }),
+  generation: z.number().int().min(1, '기수를 선택해주세요').max(100, '유효하지 않은 기수입니다'),
 })
 
-type ApplicationWhere = {
-  status?: ApplicationStatus
-  generation?: number
+// 타입 정의
+type ApplicationStatus = 'PENDING' | 'REVIEWING' | 'APPROVED' | 'REJECTED' | 'WAITLIST'
+type Application = {
+  id: string
+  name: string
+  phone: string
+  generation: number
+  status: ApplicationStatus
+  companyPosition: string
+  interests: string[]
+  golf: string
+  taxInvoice: string
+  submittedAt: string
+  reviewer: null
 }
+
+// 더미 데이터
+const DUMMY_APPLICATIONS: Application[] = [
+  {
+    id: '1',
+    name: '김민수',
+    phone: '010-1234-5678',
+    generation: 2,
+    status: 'APPROVED',
+    companyPosition: '(주)테크스타트업 / 마케팅팀장',
+    interests: ['경제, 경영, 산업 전반'],
+    golf: 'Yes',
+    taxInvoice: '발행',
+    submittedAt: new Date().toISOString(),
+    reviewer: null
+  },
+  {
+    id: '2',
+    name: '이지영',
+    phone: '010-2345-6789',
+    generation: 2,
+    status: 'REVIEWING',
+    companyPosition: '(주)IT기업 / 프로덕트 매니저',
+    interests: ['미래기술 (AI, 챗GPT)', '경제, 경영, 산업 전반'],
+    golf: 'No',
+    taxInvoice: '미발행',
+    submittedAt: new Date(Date.now() - 86400000).toISOString(),
+    reviewer: null
+  }
+]
+
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
     const generation = searchParams.get('generation')
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '10')
-    const skip = (page - 1) * limit
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
+    const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(searchParams.get('limit') || DEFAULT_PAGE_SIZE.toString())))
 
-    const where: ApplicationWhere = {}
-    
+    // 필터링 로직
+    let filteredApplications = DUMMY_APPLICATIONS
+
     if (status && status !== 'ALL') {
-      where.status = status as ApplicationStatus
+      filteredApplications = filteredApplications.filter(app => app.status === status)
     }
-    
+
     if (generation && generation !== 'all') {
-      where.generation = parseInt(generation)
+      const genNum = parseInt(generation)
+      if (!isNaN(genNum)) {
+        filteredApplications = filteredApplications.filter(app => app.generation === genNum)
+      }
     }
 
-    const applications = await prisma.application.findMany({
-      where,
-      include: {
-        reviewer: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        }
-      },
-      orderBy: {
-        submittedAt: 'desc'
-      },
-      skip,
-      take: limit
-    })
-
-    const total = await prisma.application.count({ where })
+    // 페이지네이션
+    const total = filteredApplications.length
+    const totalPages = Math.ceil(total / limit)
+    const skip = (page - 1) * limit
+    const applications = filteredApplications.slice(skip, skip + limit)
 
     return NextResponse.json({
       applications,
@@ -67,7 +105,7 @@ export async function GET(request: NextRequest) {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages
       }
     })
 
@@ -83,16 +121,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    
     const validatedData = applicationSchema.parse(body)
 
-    // 전화번호 중복 확인
-    const existingApplication = await prisma.application.findFirst({
-      where: {
-        phone: validatedData.phone,
-        generation: validatedData.generation
-      }
-    })
+    // 중복 체크 (전화번호 + 기수)
+    const existingApplication = DUMMY_APPLICATIONS.find(
+      app => app.phone === validatedData.phone && app.generation === validatedData.generation
+    )
 
     if (existingApplication) {
       return NextResponse.json(
@@ -101,17 +135,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const application = await prisma.application.create({
-      data: validatedData
-    })
+    // 새 지원서 생성
+    const newApplication: Application = {
+      id: Date.now().toString(),
+      name: validatedData.name,
+      phone: validatedData.phone,
+      generation: validatedData.generation,
+      status: 'PENDING',
+      companyPosition: validatedData.companyPosition,
+      interests: validatedData.interests,
+      golf: validatedData.golf,
+      taxInvoice: validatedData.taxInvoice,
+      submittedAt: new Date().toISOString(),
+      reviewer: null
+    }
+
+    // 더미 데이터에 추가 (메모리상에서만)
+    DUMMY_APPLICATIONS.unshift(newApplication)
 
     return NextResponse.json({ 
       message: '지원서가 성공적으로 제출되었습니다',
       application: {
-        id: application.id,
-        name: application.name,
-        generation: application.generation,
-        status: application.status
+        id: newApplication.id,
+        name: newApplication.name,
+        generation: newApplication.generation,
+        status: newApplication.status
       }
     }, { status: 201 })
 

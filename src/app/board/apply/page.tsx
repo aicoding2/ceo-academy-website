@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -36,7 +36,7 @@ export default function ApplyPage() {
     generation: ''
   })
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({
       ...prev,
@@ -47,9 +47,9 @@ export default function ApplyPage() {
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }))
     }
-  }
+  }, [errors])
 
-  const handleInterestChange = (interest: string, checked: boolean) => {
+  const handleInterestChange = useCallback((interest: string, checked: boolean) => {
     setFormData(prev => ({
       ...prev,
       interests: checked 
@@ -60,9 +60,9 @@ export default function ApplyPage() {
     if (errors.interests) {
       setErrors(prev => ({ ...prev, interests: '' }))
     }
-  }
+  }, [errors.interests])
 
-  const validateForm = (): boolean => {
+  const validateForm = useCallback((): boolean => {
     const newErrors: Record<string, string> = {}
 
     if (!formData.name.trim()) {
@@ -97,9 +97,9 @@ export default function ApplyPage() {
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
-  }
+  }, [formData])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!validateForm()) {
@@ -139,7 +139,7 @@ export default function ApplyPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [validateForm, formData, router])
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
@@ -261,7 +261,7 @@ export default function ApplyPage() {
                 6. 관심 분야 (해당사항 모두 체크) <span className="text-red-500">*</span>
               </label>
               <div className="space-y-3">
-                {[
+                {useMemo(() => [
                   '경제, 경영, 산업 전반',
                   '인문학',
                   '예술분야',
@@ -269,7 +269,7 @@ export default function ApplyPage() {
                   '의료 및 건강관리',
                   '미래기술 (AI, 챗GPT)',
                   '기타'
-                ].map((interest) => (
+                ], []).map((interest) => (
                   <label key={interest} className="flex items-center space-x-3 cursor-pointer">
                     <input
                       type="checkbox"
